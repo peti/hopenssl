@@ -1,0 +1,13 @@
+Name:            hopenssl
+Version:         0.0-2005-02-14
+Author:          Peter Simons <simons@cryp.to>
+License:         GPL
+Maintainer:      simons@cryp.to
+Homepage:        http://cryp.to/hsdns/
+Description:     OpenSSL FFI Bindings
+Build-Depends:   base, mtl
+Extra-Libraries: crypto
+Includes:        "<openssl/evp.h>"
+Extensions:      ForeignFunctionInterface
+Exposed-Modules:
+    OpenSSL.Digest
