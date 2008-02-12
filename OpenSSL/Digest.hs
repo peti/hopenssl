@@ -1,5 +1,6 @@
 {-# INCLUDE <openssl/evp.h> #-}
-{-# OPTIONS -fffi -fglasgow-exts #-}
+{-# LANGUAGE ForeignFunctionInterface, GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
+
 {- |
    Module      :  OpenSSL.Digest
    Copyright   :  (c) 2005-02-09 by Peter Simons
