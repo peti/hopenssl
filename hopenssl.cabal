@@ -1,7 +1,7 @@
 Name:            hopenssl
 Version:         0.0-2005-02-14
 Author:          Peter Simons <simons@cryp.to>
-License:         GPL
+License:         BSD3
 License-File:    LICENSE
 Maintainer:      simons@cryp.to
 Homepage:        http://cryp.to/hsdns/

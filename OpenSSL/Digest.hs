@@ -3,8 +3,8 @@
 
 {- |
    Module      :  OpenSSL.Digest
-   Copyright   :  (c) 2005-02-09 by Peter Simons
-   License     :  GPL2
+   Copyright   :  (c) 2008 by Peter Simons
+   License     :  BSD3
 
    Maintainer  :  simons@cryp.to
    Stability   :  provisional
