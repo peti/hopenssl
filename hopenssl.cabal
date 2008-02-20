@@ -1,20 +1,18 @@
-Name:            hopenssl
-Version:         0.0-2005-02-14
-Author:          Peter Simons <simons@cryp.to>
-License:         BSD3
-License-File:    LICENSE
-Maintainer:      simons@cryp.to
-Homepage:        http://cryp.to/hsdns/
-Category:        Cryptography
-Description:     OpenSSL FFI Bindings
-Build-Depends:   base, mtl
-Extra-Libraries: crypto
-Includes:        "<openssl/evp.h>"
-Extensions:      ForeignFunctionInterface
-Exposed-Modules:
-    OpenSSL.Digest
-
-Build-Type:     Simple
-Tested-With:    GHC==6.8.2
-ghc-options:    -Wall -O2
-Extensions:     ForeignFunctionInterface, GeneralizedNewtypeDeriving
+Name:                   hopenssl
+Version:                1.0
+Author:                 Peter Simons <simons@cryp.to>
+Synopsis:               FFI bindings to OpenSSL's EVP digest interface
+Description:            FFI bindings to OpenSSL's EVP digest interface
+Category:               Cryptography
+License:                BSD3
+License-file:           LICENSE
+Maintainer:             Peter Simons <simons@cryp.to>
+Homepage:               http://cryp.to/hopenssl/
+Build-Depends:          base, mtl
+Extra-Libraries:        crypto
+Includes:               "<openssl/evp.h>"
+Extensions:             ForeignFunctionInterface
+Build-Type:             Simple
+Exposed-Modules:        OpenSSL.Digest
+Data-files:             README, prologue.txt
+Ghc-Options:            -Wall
