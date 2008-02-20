@@ -1,0 +1,13 @@
+*.hi
+*.o
+/.installed-pkg-config
+/.setup-config
+/COPYING
+/GNUmakefile
+/Setup
+/Setup.lhs
+/_darcs
+/dist/*
+/docs/*
+/hopenssl-*.tar.gz
+/index.html
