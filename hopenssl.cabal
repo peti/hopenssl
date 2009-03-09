@@ -18,5 +18,5 @@ Includes:               "openssl/evp.h"
 Extensions:             ForeignFunctionInterface
 Build-Type:             Simple
 Exposed-Modules:        OpenSSL.Digest
-Data-files:             README, prologue.txt
+Data-files:             README
 Ghc-Options:            -Wall
