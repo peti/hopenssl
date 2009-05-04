@@ -3,7 +3,7 @@
 
 {- |
    Module      :  OpenSSL.Digest
-   Copyright   :  (c) 2008 by Peter Simons
+   Copyright   :  (c) 2009 by Peter Simons
    License     :  BSD3
 
    Maintainer  :  simons@cryp.to
@@ -34,7 +34,6 @@
    > SHA1:      5bcaff7f22ff533ca099b3408ead876c0ebba9a7
    > DSS:       5bcaff7f22ff533ca099b3408ead876c0ebba9a7
    > DSS1:      5bcaff7f22ff533ca099b3408ead876c0ebba9a7
-   > MDC2:      112db2200ce1e9db3c2d132aea4ef7d0
    > RIPEMD160: bdb2bba6ec93bd566dc1181cadbc92176aa78382
 -}
 
@@ -59,7 +58,6 @@ data MessageDigest
   | SHA1         -- ^ 160 bit
   | DSS          -- ^ 160 bit (SHA1)
   | DSS1         -- ^ 160 bit (SHA1)
-  | MDC2         -- ^ 128 bit
   | RIPEMD160    -- ^ 160 bit
   deriving (Show, Eq, Enum, Bounded)
 
@@ -197,7 +195,6 @@ foreign import ccall unsafe "EVP_sha"       mdSHA       :: IO MDEngine
 foreign import ccall unsafe "EVP_sha1"      mdSHA1      :: IO MDEngine
 foreign import ccall unsafe "EVP_dss"       mdDSS       :: IO MDEngine
 foreign import ccall unsafe "EVP_dss1"      mdDSS1      :: IO MDEngine
-foreign import ccall unsafe "EVP_mdc2"      mdMDC2      :: IO MDEngine
 foreign import ccall unsafe "EVP_ripemd160" mdRIPEMD160 :: IO MDEngine
 
 -- |Map a 'MessageDigest' type into the the corresponding
@@ -211,7 +208,6 @@ toMDEngine SHA       = mdSHA
 toMDEngine SHA1      = mdSHA1
 toMDEngine DSS       = mdDSS
 toMDEngine DSS1      = mdDSS1
-toMDEngine MDC2      = mdMDC2
 toMDEngine RIPEMD160 = mdRIPEMD160
 
 -- * Helper Functions
