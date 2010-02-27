@@ -23,7 +23,7 @@ Source-Repository head
 
 Library
   Build-Depends:        base >= 3 && < 5, mtl
-  Extensions:           ForeignFunctionInterface
+  Extensions:           ForeignFunctionInterface, GeneralizedNewtypeDeriving, DeriveDataTypeable
   Extra-Libraries:      crypto
   Includes:             "openssl/evp.h"
   Exposed-Modules:      OpenSSL.Digest
