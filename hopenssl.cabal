@@ -3,7 +3,7 @@ Version:                1.4
 Copyright:              (c) 2004-2010 Peter Simons
 License:                BSD3
 License-File:           LICENSE
-Author:                 Peter Simons <simons@cryp.to>
+Author:                 Peter Simons <simons@cryp.to>, Jesper Louis Andersen <jesper.louis.andersen@gmail.com>
 Maintainer:             Peter Simons <simons@cryp.to>
 Homepage:               http://gitorious.org/hopenssl
 Category:               Foreign, Cryptography
@@ -22,9 +22,9 @@ Source-Repository head
   Location:             git://gitorious.org/hopenssl/mainline.git
 
 Library
-  Build-Depends:        base >= 3 && < 5, mtl
+  Build-Depends:        base >= 3 && < 5, mtl, bytestring
   Extensions:           ForeignFunctionInterface, GeneralizedNewtypeDeriving, DeriveDataTypeable
   Extra-Libraries:      crypto
   Includes:             "openssl/evp.h"
-  Exposed-Modules:      OpenSSL.Digest
+  Exposed-Modules:      OpenSSL.Digest, OpenSSL.Digest.ByteString
   Ghc-Options:          -Wall
