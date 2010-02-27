@@ -1,9 +1,8 @@
-{-# INCLUDE <openssl/evp.h> #-}
 {-# LANGUAGE ForeignFunctionInterface, GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
 
 {- |
    Module      :  OpenSSL.Digest
-   Copyright   :  (c) 2009 by Peter Simons
+   Copyright   :  (c) 2010 by Peter Simons
    License     :  BSD3
 
    Maintainer  :  simons@cryp.to
