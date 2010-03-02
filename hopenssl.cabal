@@ -26,5 +26,5 @@ Library
   Extensions:           ForeignFunctionInterface
   Extra-Libraries:      crypto
   Includes:             "openssl/evp.h"
-  Exposed-Modules:      OpenSSL.Digest, OpenSSL.Digest.ByteString
+  Exposed-Modules:      OpenSSL.Digest, OpenSSL.Digest.ByteString, OpenSSL.Digest.ByteString.Lazy
   Ghc-Options:          -Wall

@@ -1,5 +1,5 @@
 {- |
-   Module      :  OpenSSL.Digest.ByteString
+   Module      :  OpenSSL.Digest.ByteString.Lazy
    Copyright   :  (c) 2010 by Peter Simons
    License     :  BSD3
 
@@ -7,17 +7,16 @@
    Stability   :  provisional
    Portability :  portable
 
-   Wrappers for "OpenSSL.Digest" that supports 'ByteString'.
+   Wrappers for "OpenSSL.Digest" that supports lazy 'ByteString'.
  -}
 
-module OpenSSL.Digest.ByteString where
+module OpenSSL.Digest.ByteString.Lazy where
 
 import OpenSSL.Digest hiding ( update )
-import Control.Monad.State ( evalStateT, lift, get )
-import Foreign.Ptr ( castPtr )
 import Data.Word ( Word8 )
-import Data.ByteString ( ByteString )
-import Data.ByteString.Unsafe ( unsafeUseAsCStringLen )
+import Control.Monad.State ( evalStateT )
+import qualified OpenSSL.Digest.ByteString as BS ( update )
+import Data.ByteString.Lazy ( ByteString, toChunks )
 
 -- |A convenience wrapper which computes the given digest type of a
 -- 'ByteString'. Unlike the monadic interface, this function does not
@@ -30,12 +29,7 @@ digest mdType xs =
 -- |Update the internal state with a block of data.
 
 update :: ByteString -> Digest Int
-update bs = do
-    DST ctx <- get
-    l <- lift $
-      unsafeUseAsCStringLen bs $ \(ptr, len) ->
-        digestUpdate ctx (castPtr ptr) (fromIntegral len)
-    return (fromEnum l)
+update = fmap sum . mapM BS.update . toChunks
 
 -- ----- Configure Emacs -----
 --
