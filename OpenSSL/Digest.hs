@@ -1,4 +1,4 @@
-{-# LANGUAGE ForeignFunctionInterface, GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
 
 {- |
    Module      :  OpenSSL.Digest
@@ -43,7 +43,6 @@ import Foreign
 import Foreign.C
 import Control.Monad.State
 import Numeric ( showHex )
-import Data.Typeable
 
 -- * High-level API
 
@@ -76,7 +75,6 @@ type Digest a = StateT DigestState IO a
 -- |The internal EVP context.
 
 newtype DigestState = DST (Ptr OpaqueContext)
-  deriving (Typeable)
 
 -- |Run an 'IO' computation with an initialized
 -- 'DigestState'. All resources will be freed when the
