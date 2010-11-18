@@ -15,7 +15,7 @@ Description:            Foreign-function bindings to the OpenSSL library
                         EVP digest interface.
 Cabal-Version:          >= 1.6
 Build-Type:             Simple
-Tested-With:            GHC == 6.12.1
+Tested-With:            GHC == 6.12.3
 
 Source-Repository head
   Type:                 git
