@@ -30,9 +30,3 @@ digest mdType xs =
 
 update :: ByteString -> Digest Int
 update = fmap sum . mapM BS.update . toChunks
-
--- ----- Configure Emacs -----
---
--- Local Variables: ***
--- haskell-program-name: "ghci -ignore-package hopenssl -Wall -lcrypto" ***
--- End: ***

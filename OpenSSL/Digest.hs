@@ -219,10 +219,3 @@ toHex w = case showHex w "" of
             w1:w2:[] -> w1:w2:[]
             w2:[]    -> '0':w2:[]
             _        -> error "showHex returned []"
-
-
--- ----- Configure Emacs -----
---
--- Local Variables: ***
--- haskell-program-name: "ghci -ignore-package hopenssl -Wall -lcrypto" ***
--- End: ***

@@ -36,9 +36,3 @@ update bs = do
       unsafeUseAsCStringLen bs $ \(ptr, len) ->
         digestUpdate ctx (castPtr ptr) (fromIntegral len)
     return (fromEnum l)
-
--- ----- Configure Emacs -----
---
--- Local Variables: ***
--- haskell-program-name: "ghci -ignore-package hopenssl -Wall -lcrypto" ***
--- End: ***
