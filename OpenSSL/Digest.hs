@@ -27,7 +27,6 @@
 
    > *Digest> example "open sesame" >>= putStr . unlines
    > Null:
-   > MD2:       a22a0b245bdddb00b5293ad590297b25
    > MD5:       54ef36ec71201fdf9d1423fd26f97f6b
    > SHA:       2ccefef64c76ac0d42ca1657457977675890c42f
    > SHA1:      5bcaff7f22ff533ca099b3408ead876c0ebba9a7
@@ -50,7 +49,6 @@ import Numeric ( showHex )
 
 data MessageDigest
   = Null         -- ^ 0 bit
-  | MD2          -- ^ 128 bit
   | MD5          -- ^ 128 bit
   | SHA          -- ^ 160 bit
   | SHA1         -- ^ 160 bit
@@ -186,7 +184,6 @@ foreign import ccall unsafe "EVP_DigestFinal" digestFinal ::
 -- ** Message Digest Engines
 
 foreign import ccall unsafe "EVP_md_null"   mdNull      :: IO MDEngine
-foreign import ccall unsafe "EVP_md2"       mdMD2       :: IO MDEngine
 foreign import ccall unsafe "EVP_md5"       mdMD5       :: IO MDEngine
 foreign import ccall unsafe "EVP_sha"       mdSHA       :: IO MDEngine
 foreign import ccall unsafe "EVP_sha1"      mdSHA1      :: IO MDEngine
@@ -199,7 +196,6 @@ foreign import ccall unsafe "EVP_ripemd160" mdRIPEMD160 :: IO MDEngine
 
 toMDEngine :: MessageDigest -> IO MDEngine
 toMDEngine Null      = mdNull
-toMDEngine MD2       = mdMD2
 toMDEngine MD5       = mdMD5
 toMDEngine SHA       = mdSHA
 toMDEngine SHA1      = mdSHA1
