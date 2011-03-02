@@ -1,5 +1,5 @@
 Name:                   hopenssl
-Version:                1.6
+Version:                1.6.1
 Copyright:              (c) 2004-2011 Peter Simons
 License:                BSD3
 License-File:           LICENSE
@@ -12,9 +12,9 @@ Category:               Foreign, Cryptography
 Synopsis:               FFI bindings to OpenSSL's EVP digest interface
 Description:            Foreign-function bindings to the OpenSSL library
                         <http://www.openssl.org/>. Currently provides
-                        access to the messages digests MD2, MD5, SHA,
-                        SHA1, DSS, DSS1, and RIPEMD160 through the
-                        EVP digest interface.
+                        access to the messages digests MD5, SHA, SHA1,
+                        DSS, DSS1, and RIPEMD160 through the EVP digest
+                        interface.
 Cabal-Version:          >= 1.6
 Build-Type:             Simple
 Tested-With:            GHC == 6.12.3
