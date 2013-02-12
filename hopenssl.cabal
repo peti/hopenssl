@@ -7,7 +7,7 @@ Author:                 Peter Simons <simons@cryp.to>,
                         Jesper Louis Andersen <jesper.louis.andersen@gmail.com>,
                         Markus Rothe <markus@unixforces.net>
 Maintainer:             Peter Simons <simons@cryp.to>
-Homepage:               http://gitorious.org/hopenssl
+Homepage:               http://github.com/peti/hopenssl
 Category:               Foreign, Cryptography
 Synopsis:               FFI bindings to OpenSSL's EVP digest interface
 Description:            Foreign-function bindings to the OpenSSL library
@@ -21,7 +21,7 @@ Tested-With:            GHC == 6.12.3
 
 Source-Repository head
   Type:                 git
-  Location:             git://gitorious.org/hopenssl/mainline.git
+  Location:             git://github.com/peti/hopenssl.git
 
 Library
   Build-Depends:        base >= 3 && < 5, mtl, bytestring
