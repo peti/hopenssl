@@ -1,21 +1,19 @@
 Name:                   hopenssl
 Version:                1.7
-Copyright:              (c) 2004-2013 Peter Simons
+Copyright:              (c) 2004-2017 Peter Simons
 License:                BSD3
 License-File:           LICENSE
-Author:                 Peter Simons <simons@cryp.to>,
-                        Jesper Louis Andersen <jesper.louis.andersen@gmail.com>,
-                        Markus Rothe <markus@unixforces.net>
+Author:                 Peter Simons, Jesper Louis Andersen, Markus Rothe
 Maintainer:             Peter Simons <simons@cryp.to>
 Homepage:               http://github.com/peti/hopenssl
 Category:               Foreign, Cryptography
 Synopsis:               FFI bindings to OpenSSL's EVP digest interface
-Description:            Foreign-function bindings to the OpenSSL library
-                        <http://www.openssl.org/>. Currently provides
-                        access to the messages digests MD5, DSS, DSS1,
-                        RIPEMD160, and several variants of SHA through
-                        the EVP digest interface.
-Cabal-Version:          >= 1.6
+Description:            Foreign-function bindings to the
+                        <http://www.openssl.org/ OpenSSL library>. Currently
+                        provides access to the messages digests MD5, DSS, DSS1,
+                        RIPEMD160, and several variants of SHA through the EVP
+                        digest interface.
+Cabal-Version:          >= 1.8
 Build-Type:             Simple
 Tested-With:            GHC >= 7.2.2 && < 8.1
 
@@ -25,7 +23,16 @@ Source-Repository head
 
 Library
   Build-Depends:        base >= 3 && < 5, mtl, bytestring
+  Hs-Source-Dirs:       src
   Extensions:           ForeignFunctionInterface
   Extra-Libraries:      crypto
   Includes:             "openssl/evp.h"
-  Exposed-Modules:      OpenSSL.Digest, OpenSSL.Digest.ByteString, OpenSSL.Digest.ByteString.Lazy
+  Exposed-Modules:      OpenSSL.Digest
+                        OpenSSL.Digest.ByteString
+                        OpenSSL.Digest.ByteString.Lazy
+
+Test-Suite test-hopenssl
+  Type:                 detailed-0.9
+  Test-Module:          CheckSamples
+  Hs-Source-Dirs:       test
+  build-depends:        base >= 3 && < 5, hopenssl, Cabal
