@@ -15,8 +15,7 @@ tests = map (uncurry (mkTest "open sesame")) opensesame
 
 mkTest :: String -> String -> String -> Test
 mkTest input algoName expect = TestCase $ do
-  algo' <- getDigestByName algoName
-  case algo' of
+  case getDigestByName algoName of
     Nothing -> return ()
     Just algo -> digest algo input >>= assertEqual algoName expect
 

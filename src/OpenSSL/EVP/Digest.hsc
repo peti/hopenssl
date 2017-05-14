@@ -19,9 +19,10 @@
 
 module OpenSSL.EVP.Digest where
 
-import Foreign hiding ( void )
+import Foreign
 import Foreign.C
 import Numeric ( showHex )
+import System.IO.Unsafe
 
 #include "openssl/evp.h"
 
@@ -152,12 +153,9 @@ foreign import ccall unsafe "openssl/evp.h EVP_DigestFinal_ex" _finalizeDigest :
 newtype DigestDescription = DigestDescription { getDigestDescription :: Ptr OpaqueDigestDescription }
   deriving (Show, Eq)
 
-getDigestByName :: String -> IO (Maybe DigestDescription)
-getDigestByName algo = do
-  ptr <- withCString algo (return . _getDigestByName)
-  return $ if ptr == nullPtr
-              then Nothing
-              else Just (DigestDescription ptr)
+getDigestByName :: String -> (Maybe DigestDescription)
+getDigestByName algo = if ptr == nullPtr then Nothing else Just (DigestDescription ptr)
+  where ptr = unsafePerformIO $ withCString algo (return . _getDigestByName)
 
 newtype DigestContext = DigestContext { getDigestContext :: Ptr OpaqueDigestContext }
 
