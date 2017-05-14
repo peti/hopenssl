@@ -1,36 +1,36 @@
-Name:                   hopenssl
-Version:                2
-Copyright:              (c) 2004-2017 Peter Simons
-License:                BSD3
-License-File:           LICENSE
-Author:                 Peter Simons, Markus Rothe
-Maintainer:             Peter Simons <simons@cryp.to>
-Homepage:               http://github.com/peti/hopenssl
-Category:               Foreign, Cryptography
-Synopsis:               FFI bindings to OpenSSL's EVP digest interface
-Description:            Foreign-function bindings to the
+name:                   hopenssl
+version:                2
+copyright:              (c) 2004-2017 Peter Simons
+license:                BSD3
+license-file:           LICENSE
+author:                 Peter Simons, Markus Rothe
+maintainer:             Peter Simons <simons@cryp.to>
+homepage:               http://github.com/peti/hopenssl
+category:               Foreign, Cryptography
+synopsis:               FFI bindings to OpenSSL's EVP digest interface
+description:            Foreign-function bindings to the
                         <http://www.openssl.org/ OpenSSL library>. Currently
                         provides access to the messages digests MD5, DSS, DSS1,
                         RIPEMD160, and several variants of SHA through the EVP
                         digest interface.
-Cabal-Version:          >= 1.8
-Build-Type:             Simple
-Tested-With:            GHC > 7 && < 8.1
+cabal-version:          >= 1.8
+build-type:             Simple
+tested-with:            GHC > 7 && < 8.1
 
-Source-Repository head
-  Type:                 git
-  Location:             git://github.com/peti/hopenssl.git
+source-repository head
+  type:                 git
+  location:             git://github.com/peti/hopenssl.git
 
-Library
-  Build-Depends:        base >= 3 && < 5, mtl, bytestring
-  Hs-Source-Dirs:       src
-  Extensions:           ForeignFunctionInterface
-  Extra-Libraries:      crypto
-  Includes:             "openssl/evp.h"
-  Exposed-Modules:      OpenSSL.EVP.Digest
+library
+  build-depends:        base >= 3 && < 5
+  hs-source-dirs:       src
+  other-extensions:     ForeignFunctionInterface, EmptyDataDecls
+  extra-libraries:      crypto
+  includes:             "openssl/evp.h"
+  exposed-modules:      OpenSSL.EVP.Digest
 
-Test-Suite check-low-level-digest-api
-  Type:                 exitcode-stdio-1.0
-  Main-Is:              CheckLowLevelDigestAPI.hs
-  Hs-Source-Dirs:       test
+test-suite check-low-level-digest-api
+  type:                 exitcode-stdio-1.0
+  main-is:              CheckLowLevelDigestAPI.hs
+  hs-source-dirs:       test
   build-depends:        base >= 3 && < 5, hopenssl, HUnit
