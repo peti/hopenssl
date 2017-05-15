@@ -93,15 +93,14 @@ module OpenSSL.Digest
 import OpenSSL.EVP.Digest hiding ( toHex )
 
 import Control.Exception
-import Control.Monad
-import Foreign
-import Foreign.C
-import System.IO.Unsafe as IO
-import qualified Data.ByteString as Strict ( ByteString, packCStringLen, concatMap, pack )
+import qualified Data.ByteString as Strict ( ByteString, packCStringLen, concatMap )
 import Data.ByteString.Char8 as Strict8 ( pack )
 import qualified Data.ByteString.Lazy as Lazy ( ByteString, toChunks )
 import Data.ByteString.Unsafe ( unsafeUseAsCStringLen )
+import Foreign
+import Foreign.C
 import Numeric ( showHex )
+import System.IO.Unsafe as IO
 
 -- $setup
 -- >>> import Data.Maybe
@@ -196,6 +195,6 @@ toHex = Strict.concatMap f
   where
     f :: Word8 -> StrictByteString
     f w = case showHex w "" of
-            w1:w2:[] -> Strict8.pack $ w1:w2:[]
-            w2:[]    -> Strict8.pack $ '0':w2:[]
-            _        -> error "showHex returned []"
+            [w1,w2] -> pack [w1, w2]
+            [w2]    -> pack ['0', w2]
+            _       -> error "showHex returned []"

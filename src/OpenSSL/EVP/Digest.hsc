@@ -96,10 +96,10 @@ data OpaqueDigestEngine
 data OpaqueDigestContext
 
 instance Storable OpaqueDigestContext where
-   sizeOf _ = #{size EVP_MD_CTX}
+   sizeOf _    = #{size EVP_MD_CTX}
    alignment _ = #{alignment EVP_MD_CTX}
-   peek _ = error "Don't do this. OpaqueDigestContext is, like, opaque."
-   poke _ _ = error "Don't do this. OpaqueDigestContext is, like, opaque."
+   peek _      = error "Don't do this. OpaqueDigestContext is, like, opaque."
+   poke _ _    = error "Don't do this. OpaqueDigestContext is, like, opaque."
 
 -- | Allocate an (initialized) 'OpaqueDigestContext' for use in a digest
 -- computation on the heap. Release its underlying memory after use with
@@ -166,11 +166,11 @@ digestByName algo =
   fromMaybe (throw (DigestAlgorithmNotAvailableInOpenSSL algo))
             (digestByName' algo)
 
-digestByName' :: String -> (Maybe DigestDescription)
+digestByName' :: String -> Maybe DigestDescription
 digestByName' algo = if ptr == nullPtr then Nothing else Just (DigestDescription ptr)
   where ptr = IO.unsafePerformIO $ withCString algo $ \name -> do
                 modifyMVar_ isDigestEngineInitialized $ \isInitialized ->
-                  when (not isInitialized) _addAllDigests >> return True
+                  unless isInitialized _addAllDigests >> return True
                 return (_digestByName name)
 
 newtype DigestContext = DigestContext { getDigestContext :: Ptr OpaqueDigestContext }
@@ -226,9 +226,9 @@ throwIfZero fname =
 
 toHex :: Word8 -> String
 toHex w = case showHex w "" of
-            w1:w2:[] -> w1:w2:[]
-            w2:[]    -> '0':w2:[]
-            _        -> error "showHex returned []"
+           [w1,w2] -> [w1, w2]
+           [w2]    -> ['0', w2]
+           _       -> "showHex returned []"
 
 {-# NOINLINE isDigestEngineInitialized #-}
 isDigestEngineInitialized :: MVar Bool
