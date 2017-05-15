@@ -49,12 +49,12 @@
    construct of "void pointer plus a length". @digest@ can use with any of the
    following signatures:
 
-   >>> shape1 = digest :: DigestDescription -> (Ptr (),    CSize) -> [Word8]
-   >>> shape2 = digest :: DigestDescription -> (Ptr Word8, CSize) -> [Word8]
-   >>> shape3 = digest :: DigestDescription -> (Ptr Word8, CUInt) -> [Word8]
-   >>> shape4 = digest :: DigestDescription -> (Ptr (),    Int)   -> [Word8]
-   >>> shape5 = digest :: DigestDescription -> StrictByteString   -> [Word8]
-   >>> shape6 = digest :: DigestDescription -> LazyByteString     -> [Word8]
+   >>> let shape1 = digest :: DigestDescription -> (Ptr (),    CSize) -> [Word8]
+   >>> let shape2 = digest :: DigestDescription -> (Ptr Word8, CSize) -> [Word8]
+   >>> let shape3 = digest :: DigestDescription -> (Ptr Word8, CUInt) -> [Word8]
+   >>> let shape4 = digest :: DigestDescription -> (Ptr (),    Int)   -> [Word8]
+   >>> let shape5 = digest :: DigestDescription -> StrictByteString   -> [Word8]
+   >>> let shape6 = digest :: DigestDescription -> LazyByteString     -> [Word8]
 
    'StrictByteString' and 'LazyByteString' are also instances of 'IsString' and
    therefore subject to implicit construction from string literals:
