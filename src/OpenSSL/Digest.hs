@@ -63,11 +63,11 @@
    >>> shape5 "sha256" "hello" == shape6 "sha256" "hello"
    True
 
-   What we /don't/ offer are overloaded 'digest' versions for 'String' or
-   'CString'. These types produce non-deterministic results for Unicode strings
-   because their exact binary representation depends on the system's locale.
-   For those who absolutely want to hash 'String', the following specialized
-   function is provided:
+   Note that this code offers no overloaded 'digest' version for 'String',
+   because that function would produce non-deterministic results for Unicode
+   characters. There is an instance for @[Word8]@, though, so strings can be
+   hashed after a proper encoding has been applied. For those who don't care
+   about determinism, there is the following specialized function:
 
    >>> toHex $ digestString "md5" "no Digestable instance for this sucker"
    "a74827f849005794565f83fbd68ad189"
