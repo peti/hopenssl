@@ -22,7 +22,7 @@ module OpenSSL.EVP.Digest where
 import Foreign
 import Foreign.C
 import Numeric ( showHex )
-import System.IO.Unsafe
+import System.IO.Unsafe as IO
 
 #include "openssl/evp.h"
 
@@ -155,7 +155,7 @@ newtype DigestDescription = DigestDescription { getDigestDescription :: Ptr Opaq
 
 getDigestByName :: String -> (Maybe DigestDescription)
 getDigestByName algo = if ptr == nullPtr then Nothing else Just (DigestDescription ptr)
-  where ptr = unsafePerformIO $ withCString algo (return . _getDigestByName)
+  where ptr = IO.unsafePerformIO $ withCString algo (return . _getDigestByName)
 
 newtype DigestContext = DigestContext { getDigestContext :: Ptr OpaqueDigestContext }
 
