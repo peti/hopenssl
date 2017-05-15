@@ -24,7 +24,7 @@ source-repository head
 library
   build-depends:        base >= 3 && < 5, bytestring
   hs-source-dirs:       src
-  other-extensions:     ForeignFunctionInterface, EmptyDataDecls
+  other-extensions:     ForeignFunctionInterface, EmptyDataDecls, DeriveDataTypeable
   extra-libraries:      crypto
   includes:             "openssl/evp.h"
   exposed-modules:      OpenSSL.Digest
