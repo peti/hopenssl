@@ -22,15 +22,33 @@ source-repository head
   location:             git://github.com/peti/hopenssl.git
 
 library
-  build-depends:        base >= 3 && < 5
+  build-depends:        base >= 3 && < 5, bytestring
   hs-source-dirs:       src
   other-extensions:     ForeignFunctionInterface, EmptyDataDecls
   extra-libraries:      crypto
   includes:             "openssl/evp.h"
-  exposed-modules:      OpenSSL.EVP.Digest
+  exposed-modules:      OpenSSL.Digest
+                        OpenSSL.EVP.Digest
 
 test-suite check-low-level-digest-api
   type:                 exitcode-stdio-1.0
   main-is:              CheckLowLevelDigestAPI.hs
+  other-modules:        OpenSesame
   hs-source-dirs:       test
   build-depends:        base >= 3 && < 5, hopenssl, HUnit
+  ghc-options:          -threaded
+
+test-suite check-high-level-digest-api
+  type:                 exitcode-stdio-1.0
+  main-is:              CheckHighLevelDigestAPI.hs
+  other-modules:        OpenSesame
+  hs-source-dirs:       test
+  build-depends:        base >= 3 && < 5, hopenssl, HUnit
+  ghc-options:          -threaded
+
+test-suite doctests
+  type:                 exitcode-stdio-1.0
+  main-is:              doctests.hs
+  hs-source-dirs:       test
+  build-depends:        base, hopenssl, doctest
+  ghc-options:          -threaded

@@ -19,6 +19,12 @@
 
 module OpenSSL.EVP.Digest where
 
+import Control.Concurrent.MVar
+import Control.Exception
+import Control.Monad
+import Data.Maybe
+import Data.String ( IsString(..) )
+import Data.Typeable ( Typeable )
 import Foreign
 import Foreign.C
 import Numeric ( showHex )
@@ -38,8 +44,9 @@ import System.IO.Unsafe as IO
 
 -- | Initialize the OpenSSL EVP engine and register all known digest types in
 -- the internal data structures. This function must be called before
--- '_getDigestByName' can succeed. Calling it multiple times is probably not
--- harmful, but it almost certainly unnecessary and should be avoided.
+-- '_digestByName' can succeed. Calling it multiple times is probably not
+-- harmful, but it certainly unnecessary and should be avoided. Users of
+-- 'digestByName'' and 'digestByName' don't have to worry about this.
 
 foreign import ccall unsafe "openssl/evp.h OpenSSL_add_all_digests" _addAllDigests :: IO ()
 
@@ -52,7 +59,7 @@ data OpaqueDigestDescription
 -- | Look up a 'Digest' by name. Be sure to call '_addAllDigests' before you
 -- use this function.
 
-foreign import ccall unsafe "openssl/evp.h EVP_get_digestbyname" _getDigestByName :: CString -> Ptr OpaqueDigestDescription
+foreign import ccall unsafe "openssl/evp.h EVP_get_digestbyname" _digestByName :: CString -> Ptr OpaqueDigestDescription
 
 -- | Return the size of the digest the given algorithm will produce.
 
@@ -153,15 +160,23 @@ foreign import ccall unsafe "openssl/evp.h EVP_DigestFinal_ex" _finalizeDigest :
 newtype DigestDescription = DigestDescription { getDigestDescription :: Ptr OpaqueDigestDescription }
   deriving (Show, Eq)
 
-getDigestByName :: String -> (Maybe DigestDescription)
-getDigestByName algo = if ptr == nullPtr then Nothing else Just (DigestDescription ptr)
-  where ptr = IO.unsafePerformIO $ withCString algo (return . _getDigestByName)
+digestByName :: String -> DigestDescription
+digestByName algo =
+  fromMaybe (throw (DigestAlgorithmNotAvailableInOpenSSL algo))
+            (digestByName' algo)
+
+digestByName' :: String -> (Maybe DigestDescription)
+digestByName' algo = if ptr == nullPtr then Nothing else Just (DigestDescription ptr)
+  where ptr = IO.unsafePerformIO $ withCString algo $ \name -> do
+                modifyMVar_ isDigestEngineInitialized $ \isInitialized ->
+                  when (not isInitialized) _addAllDigests >> return True
+                return (_digestByName name)
 
 newtype DigestContext = DigestContext { getDigestContext :: Ptr OpaqueDigestContext }
 
 digestContext :: Ptr OpaqueDigestContext -> DigestContext
 digestContext ptr
-  | ptr == nullPtr = error "OpenSSL.EVP.Digest.digestContext called with NULL pointer"
+  | ptr == nullPtr = throw AttemptToConstructDigestContextFromNullPointer
   | otherwise      = DigestContext ptr
 
 initContext :: DigestContext -> IO ()
@@ -174,8 +189,8 @@ createContext =
 -- | Simplified variant of '_initDigest' that (a) always chooses the default
 -- digest engine and (b) reports failure by means of an exception.
 
-initDigest :: DigestContext -> DigestDescription -> IO ()
-initDigest (DigestContext ctx) (DigestDescription algo) =
+initDigest :: DigestDescription -> DigestContext -> IO ()
+initDigest (DigestDescription algo) (DigestContext ctx) =
   throwIfZero "OpenSSL.EVP.Digest.initDigest" (_initDigest ctx algo nullPtr)
 
 cleanupContext :: DigestContext -> IO ()
@@ -193,7 +208,7 @@ finalizeDigest :: DigestContext -> Ptr Word8 -> IO ()
 finalizeDigest (DigestContext ctx) ptr =
   throwIfZero "OpenSSL.EVP.Digest.finalizeDigest" (_finalizeDigest ctx ptr nullPtr)
 
--- * Helper Functions
+-- * Helper Types and Functions
 
 -- | Most OpenSSL functions return an approximation of @Bool@ to signify
 -- failure. This wrapper makes it easier to move the error handling to the
@@ -213,3 +228,32 @@ toHex w = case showHex w "" of
             w1:w2:[] -> w1:w2:[]
             w2:[]    -> '0':w2:[]
             _        -> error "showHex returned []"
+
+{-# NOINLINE isDigestEngineInitialized #-}
+isDigestEngineInitialized :: MVar Bool
+isDigestEngineInitialized = IO.unsafePerformIO $ newMVar False
+
+-- | This instance allows the compiler to translate the string @"sha256"@ into
+-- @digestByName "sha256"@ whenever a 'String' is passed in a location that
+-- expects a 'DigestDescription'. If that digest engine does not exist, then an
+-- exception is thrown. This feature requires the @OverloadedStrings@ extension
+-- enabled.
+
+instance IsString DigestDescription where
+  fromString = digestByName
+
+-- | A custom exception type which is thrown by 'digestByName' in case the
+-- requested digest algorithm is not available in the OpenSSL system library.
+
+newtype DigestAlgorithmNotAvailableInOpenSSL = DigestAlgorithmNotAvailableInOpenSSL String
+  deriving (Show, Typeable)
+
+instance Exception DigestAlgorithmNotAvailableInOpenSSL
+
+-- | A custom exception type thrown by 'digestContext' if the function is used
+-- to construct a 'DigestContext' from a 'nullPtr'.
+
+data AttemptToConstructDigestContextFromNullPointer = AttemptToConstructDigestContextFromNullPointer
+  deriving (Show, Typeable)
+
+instance Exception AttemptToConstructDigestContextFromNullPointer

@@ -1,20 +1,15 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 {- |
-   Module      :  OpenSSL.Digest
-   Copyright   :  (c) 2014 by Peter Simons
-   License     :  BSD3
+   Maintainer:  simons@cryp.to
+   Stability:   provisional
+   Portability: portable
 
-   Maintainer  :  simons@cryp.to
-   Stability   :  provisional
-   Portability :  portable
+   This module proivdes a high-level API to the message digest algorithms found
+   in OpenSSL's @crypto@ library.
 
-   This module proivdes a high-level API to the message
-   digest algorithms found in OpenSSL's @crypto@ library.
-   Link with @-lcrypto@ when using this module.
-
-   Here is a short example program which runs all available
-   digests on a string:
+   Here is a short example program which runs all available digests on a
+   string:
 
    > example :: (Enum a) => [a] -> IO [String]
    > example input = mapM hash [minBound .. maxBound]
@@ -40,198 +35,101 @@
    > SHA512:    8470cdd3bf1ef85d5f092bce5ae5af97ce50820481bf43b2413807fec37e2785b533a65d4c7d71695b141d81ebcd4b6c4def4284e6067f0b400000001b230205
 -}
 
-module OpenSSL.Digest where
+module OpenSSL.Digest
+  ( -- * Generic digest API
+    Digestable(..), digestByName, digestByName', DigestDescription
+  , StrictByteString, LazyByteString
+  , -- * Special instances
+    digestCStringLen, digestString
+  , -- * Helper Types and Functions
+    toHex, digest', DigestablePointeeType, DigestableSizeType
+  )
+  where
 
-import Control.Exception ( bracket )
+import OpenSSL.EVP.Digest
+
+import Control.Exception
+import Control.Monad
 import Foreign
 import Foreign.C
-import Control.Monad.State
-import Numeric ( showHex )
+import System.IO.Unsafe as IO
+import qualified Data.ByteString as Strict ( ByteString )
+import qualified Data.ByteString.Lazy as Lazy ( ByteString, toChunks )
+import Data.ByteString.Unsafe ( unsafeUseAsCStringLen )
 
--- * High-level API
+-- $setup
+-- >>> import Data.Maybe
 
--- |The message digest algorithms we support.
+-- Generic Class API ----------------------------------------------------------
 
-data MessageDigest
-  = Null         -- ^ 0 bit
-  | MD5          -- ^ 128 bit
-  | SHA          -- ^ 160 bit
-  | SHA1         -- ^ 160 bit
-  | DSS          -- ^ other name for SHA1
-  | DSS1         -- ^ other name for SHA1
-  | RIPEMD160    -- ^ 160 bit
-  | MDC2         -- ^ 128 bit
-  | SHA224       -- ^ 224 bit
-  | SHA256       -- ^ 256 bit
-  | SHA384       -- ^ 384 bit
-  | SHA512       -- ^ 512 bit
-  deriving (Show, Eq, Enum, Bounded)
+class Digestable a where
+  {-# MINIMAL digestMany #-}
 
--- |A convenience wrapper which computes the given digest
--- over a list of 'Word8'. Unlike the monadic interface,
--- this function does not allow the computation to be
--- restarted.
+  digest :: DigestDescription -> a -> [Word8]
+  digest algo = digestMany algo . return
 
-digest :: MessageDigest -> [Word8] -> IO [Word8]
-digest mdType xs =
-  mkDigest mdType $ evalStateT (update xs >> final)
+  digestMany :: DigestDescription -> [a] -> [Word8]
 
--- |A monadic interface to the digest computation.
+instance (DigestablePointeeType a, DigestableSizeType b) => Digestable (Ptr a, b) where
+  digestMany algo chunks = digest' algo (forM_ [ (castPtr ptr, fromIntegral len) | (ptr,len) <- chunks ])
 
-type Digest a = StateT DigestState IO a
+instance Digestable StrictByteString where
+  digestMany algo chunks = digest' algo $ \update ->
+    forM_ chunks $ \chunk ->
+      unsafeUseAsCStringLen chunk $ \(ptr,len) ->
+        update (castPtr ptr, fromIntegral len)
 
--- |The internal EVP context.
+instance Digestable LazyByteString where
+  digestMany algo chunks = digest' algo $ \update ->
+    forM_ chunks $ \chunk' ->
+      forM_ (Lazy.toChunks chunk') $ \chunk ->
+         unsafeUseAsCStringLen chunk $ \(ptr,len) ->
+           update (castPtr ptr, fromIntegral len)
 
-newtype DigestState = DST (Ptr OpaqueContext)
+-- |We do not define a 'Digestable' instance for 'CStringLen', because there is
+-- no one obviously correct way to encode Unicode characters for purposes of
+-- calculating a digest. This specialized function is provided for convenience,
+-- though. It is implemented on top of 'withCStringLen'. This means that the
+-- representation of Unicode characters depends on the process locale
+-- configuration a.k.a. it's non-deterministc!
 
--- |Run an 'IO' computation with an initialized
--- 'DigestState'. All resources will be freed when the
--- computation returns.
+digestCStringLen :: DigestDescription -> CStringLen -> [Word8]
+digestCStringLen algo (ptr,len) = digest algo (castPtr ptr :: Ptr (), len)
 
-mkDigest :: MessageDigest -> (DigestState -> IO a) -> IO a
-mkDigest mdType f =
-  bracket ctxCreate ctxDestroy $ \ctx -> do
-    when (ctx == nullPtr) (fail "Digest.mkDigest: ctxCreate failed")
-    md <- toMDEngine mdType
-    when (md == nullPtr) (fail ("Digest.mkDigest: can't access "++show mdType))
-    rc <- digestInit ctx md
-    when (rc == 0) (fail ("Digest.mkDigest: can't initialize "++show mdType))
-    f (DST ctx)
+-- |We do not define a 'Digestable' instance for 'String', because there is no
+-- one obviously correct way to encode Unicode characters for purposes of
+-- calculating a digest. It would feel silly, though, to offer digest functions
+-- for all kinds of types /except/ @String@, so here is a specialized function
+-- that computes a digest over a @String@ relying on 'digestCStringLen'.
+--
+-- >>> digestString (digestByName "sha1") "Hello, world." >>= toHex
+-- "2ae01472317d1935a84797ec1983ae243fc6aa28"
 
--- |Update the internal state with a block of data. This
--- function is just a wrapper for 'update'', which creates
--- an array in memory using 'withArray'.
+digestString :: DigestDescription -> String -> [Word8]
+digestString algo str = IO.unsafePerformIO $
+  withCStringLen str (return . digestCStringLen algo)
 
-update :: [Word8] -> Digest ()
-update xs = do
-  st <- get
-  liftIO $
-    withArray xs $ \p ->
-      evalStateT (update' (p, length xs)) st
+-- Helper functions -----------------------------------------------------------
 
--- |Update the internal state with a block of data from
--- memory. This is the /faster/ version of 'update'.
+type StrictByteString = Strict.ByteString
 
-update' :: (Ptr Word8, Int) -> Digest ()
-update' (p,n) = do
-  DST ctx <- get
-  rc <- liftIO $ digestUpdate ctx p (toEnum (fromEnum n))
-  when (rc == 0) (fail "Digest.update failed")
+type LazyByteString = Lazy.ByteString
 
--- |Wrap up the computation, add padding, do whatever has to
--- be done, and return the final hash. The length of the
--- result depends on the chosen 'MessageDigest'. Do not call
--- more than once!
+digest' :: DigestDescription -> (((Ptr (), CSize) -> IO ()) -> IO ()) -> [Word8]
+digest' algo consumer = IO.unsafePerformIO $
+    bracket createContext destroyContext $ \ctx -> do
+      initDigest algo ctx
+      consumer (uncurry (updateDigest ctx))
+      let mdSize = fromIntegral (_digestSize (getDigestDescription algo))
+      allocaArray mdSize $ \md -> do
+        finalizeDigest ctx md
+        peekArray mdSize md
 
-final :: Digest [Word8]
-final = do
-  DST ctx <- get
-  liftIO $
-    allocaArray maxMDSize $ \p ->
-      allocaArray (sizeOf (undefined :: CUInt)) $ \i -> do
-        rc <- digestFinal ctx p i
-        when (rc == 0) (fail "Digest.Final failed")
-        i' <- peek i
-        peekArray (fromEnum i') p
+class DigestablePointeeType a
+instance DigestablePointeeType ()
+instance DigestablePointeeType Word8
 
--- * Low-level API
-
--- |The EVP context used by OpenSSL is opaque for us; we
--- only access it through a 'Ptr'.
-
-data OpaqueContext = OpaqueContext
-type Context = Ptr OpaqueContext
-
--- |The message digest engines are opaque for us as well.
-
-data OpaqueMDEngine = OpaqueMDEngine
-type MDEngine = Ptr OpaqueMDEngine
-
--- |Maximum size of all message digests supported by
--- OpenSSL. Allocate a buffer of this size for 'digestFinal'
--- if you want to stay generic.
-
-maxMDSize :: Int
-maxMDSize = 36
-
--- |Create an EVP context. May be 'nullPtr'.
-
-foreign import ccall unsafe "EVP_MD_CTX_create" ctxCreate ::
-  IO Context
-
--- |Initialize an EVP context.
-
-foreign import ccall unsafe "EVP_MD_CTX_init" ctxInit ::
-  Context -> IO ()
-
--- |Destroy an EVP context and free the allocated resources.
-
-foreign import ccall unsafe "EVP_MD_CTX_destroy" ctxDestroy ::
-  Context -> IO ()
-
--- |Set the message digest engine for 'digestUpdate' calls.
--- Returns @\/=0@ in case of an error.
-
-foreign import ccall unsafe "EVP_DigestInit" digestInit ::
-  Context -> MDEngine -> IO CInt
-
--- |Update the internal context with a block of input.
--- Returns @\/=0@ in case of an error.
-
-foreign import ccall unsafe "EVP_DigestUpdate" digestUpdate ::
-  Context -> Ptr Word8 -> CUInt -> IO CInt
-
--- |Wrap up the digest computation and return the final
--- digest. Do not call repeatedly on the same context!
--- Returns @\/=0@ in case of an error. The pointer to the
--- unsigned integer may be 'nullPtr'. If it is not,
--- 'digestFinal' will store the length of the computed
--- digest there.
-
-foreign import ccall unsafe "EVP_DigestFinal" digestFinal ::
-  Context -> Ptr Word8 -> Ptr CUInt -> IO CInt
-
--- ** Message Digest Engines
-
-foreign import ccall unsafe "EVP_dss"       mdDSS       :: IO MDEngine
-foreign import ccall unsafe "EVP_dss1"      mdDSS1      :: IO MDEngine
-foreign import ccall unsafe "EVP_md5"       mdMD5       :: IO MDEngine
-foreign import ccall unsafe "EVP_md_null"   mdNull      :: IO MDEngine
-foreign import ccall unsafe "EVP_mdc2"      mdMDC2      :: IO MDEngine
-foreign import ccall unsafe "EVP_ripemd160" mdRIPEMD160 :: IO MDEngine
-foreign import ccall unsafe "EVP_sha"       mdSHA       :: IO MDEngine
-foreign import ccall unsafe "EVP_sha1"      mdSHA1      :: IO MDEngine
-foreign import ccall unsafe "EVP_sha224"    mdSHA224    :: IO MDEngine
-foreign import ccall unsafe "EVP_sha256"    mdSHA256    :: IO MDEngine
-foreign import ccall unsafe "EVP_sha384"    mdSHA384    :: IO MDEngine
-foreign import ccall unsafe "EVP_sha512"    mdSHA512    :: IO MDEngine
-
--- |Map a 'MessageDigest' type into the the corresponding
--- 'MDEngine'.
-
-toMDEngine :: MessageDigest -> IO MDEngine
-toMDEngine Null      = mdNull
-toMDEngine MD5       = mdMD5
-toMDEngine SHA       = mdSHA
-toMDEngine SHA1      = mdSHA1
-toMDEngine DSS       = mdDSS
-toMDEngine DSS1      = mdDSS1
-toMDEngine RIPEMD160 = mdRIPEMD160
-toMDEngine MDC2      = mdMDC2
-toMDEngine SHA224    = mdSHA224
-toMDEngine SHA256    = mdSHA256
-toMDEngine SHA384    = mdSHA384
-toMDEngine SHA512    = mdSHA512
-
--- * Helper Functions
-
--- |Neat helper to print digests with:
--- @
---   \\ws :: [Word8] -> ws >>= toHex
--- @
-
-toHex :: Word8 -> String
-toHex w = case showHex w "" of
-            w1:w2:[] -> w1:w2:[]
-            w2:[]    -> '0':w2:[]
-            _        -> error "showHex returned []"
+class Integral a => DigestableSizeType a
+instance DigestableSizeType CSize
+instance DigestableSizeType CUInt
+instance DigestableSizeType Int
