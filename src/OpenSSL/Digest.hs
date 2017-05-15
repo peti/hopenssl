@@ -10,18 +10,18 @@
    particular interest: 'digestByName' and 'digest'. The former can be used to
    retrieve a 'DigestDescription', i.e. an OpenSSL object that implements a
    particular algorithm. That type can then be used to compute actual message
-   digests:
+   digests with the latter function:
 
    >>> import Data.ByteString.Char8 ( pack )
    >>> digest (digestByName "md5") (pack "Hello, world.")
-   [8,10,239,131,155,149,250,207,115,236,89,147,117,233,45,71]
+   "\b\n\239\131\155\149\250\207s\236Y\147u\233-G"
 
-   Neat pretty-printing can be achieved by running @'concatMap' 'toHex'@ over
-   the @[Word8]@ fingerprint returned by 'digest':
+   Neat pretty-printing can be achieved with 'toHex', which converts the binary
+   representation of a message digest into the common hexadecimal one:
 
-   >>> digest (digestByName "md5") (pack "Hello, world.") >>= toHex
+   >>> toHex $ digest (digestByName "md5") (pack "Hello, world.")
    "080aef839b95facf73ec599375e92d47"
-   >>> digest (digestByName "sha1") (pack "Hello, world.") >>= toHex
+   >>> toHex $ digest (digestByName "sha1") (pack "Hello, world.")
    "2ae01472317d1935a84797ec1983ae243fc6aa28"
 
    The precise set of available digest algorithms provided by OpenSSL depends
@@ -36,12 +36,12 @@
    Nothing
 
    'DigestDescription' is an instance of 'IsString', so with the proper GHC
-   extensions installed it's possible to simplify the call to 'digest' even
+   extensions enabled it's possible to simplify the call to 'digest' even
    further:
 
    >>> :set -XOverloadedStrings
-   >>> digest "sha256" (pack "this can be simplified further") >>= toHex
-   "727311383e8fcc55da1f3b5a0afb6051b39e9cae3a72c89df3f4b40ce45f0a9a"
+   >>> toHex $ digest "sha256" (pack "The 'Through the Universe' podcast rules.")
+   "73624694a9435095c8fdaad711273a23c02226196c452f817cfd86f965895614"
 
    Last but not least, 'digest' is actually a class method of 'Digestable',
    which collects things we can compute digests of. The defaults are
@@ -49,12 +49,12 @@
    construct of "void pointer plus a length". @digest@ can use with any of the
    following signatures:
 
-   >>> let shape1 = digest :: DigestDescription -> (Ptr (),    CSize) -> [Word8]
-   >>> let shape2 = digest :: DigestDescription -> (Ptr Word8, CSize) -> [Word8]
-   >>> let shape3 = digest :: DigestDescription -> (Ptr Word8, CUInt) -> [Word8]
-   >>> let shape4 = digest :: DigestDescription -> (Ptr (),    Int)   -> [Word8]
-   >>> let shape5 = digest :: DigestDescription -> StrictByteString   -> [Word8]
-   >>> let shape6 = digest :: DigestDescription -> LazyByteString     -> [Word8]
+   >>> let shape1 = digest :: DigestDescription -> (Ptr (),    CSize) -> MessageDigest
+   >>> let shape2 = digest :: DigestDescription -> (Ptr Word8, CSize) -> MessageDigest
+   >>> let shape3 = digest :: DigestDescription -> (Ptr Word8, CUInt) -> MessageDigest
+   >>> let shape4 = digest :: DigestDescription -> (Ptr (),    Int)   -> MessageDigest
+   >>> let shape5 = digest :: DigestDescription -> StrictByteString   -> MessageDigest
+   >>> let shape6 = digest :: DigestDescription -> LazyByteString     -> MessageDigest
 
    'StrictByteString' and 'LazyByteString' are also instances of 'IsString' and
    therefore subject to implicit construction from string literals:
@@ -68,122 +68,134 @@
    For those who absolutely want to hash 'String', the following specialized
    function is provided:
 
-   >>> digestString "md5" "no Digestable instance for this sucker" >>= toHex
+   >>> toHex $ digestString "md5" "no Digestable instance for this sucker"
    "a74827f849005794565f83fbd68ad189"
 
    If you don't mind orphaned instances, however, feel free to shoot yourself
    in the foot:
 
    >>> :set -XFlexibleInstances
-   >>> :{
-        instance Digestable String where
-          digestMany algo chunks = digest' algo $ \update ->
-            forM_ chunks $ \chunk ->
-              withCStringLen chunk $ \(ptr,len) ->
-                update (castPtr ptr, fromIntegral len)
-       :}
-
-   Now 'digest' works with 'String's:
-
-   >>> digest "sha256" ("now we can hash strings"::String) >>= toHex
+   >>> instance Digestable String where updateChunk ctx str = withCStringLen str (updateChunk ctx)
+   >>> toHex $ digest "sha256" ("now we can hash strings" :: String)
    "7f2989f173125810aa917c4ffe0e26ae1b5f7fb852274829c210297a43dfc7f9"
 -}
 
 module OpenSSL.Digest
   ( -- * Generic digest API
-    Digestable(..), digestByName, digestByName', DigestDescription
-  , StrictByteString, LazyByteString
+    MessageDigest, digest, Digestable(..), digestByName, digestByName', DigestDescription
   , -- * Special instances
-    digestCStringLen, digestString
+    digestString
   , -- * Helper Types and Functions
-    toHex, digest', DigestablePointeeType, DigestableSizeType
+    toHex, StrictByteString, LazyByteString
   )
   where
 
-import OpenSSL.EVP.Digest
+import OpenSSL.EVP.Digest hiding ( toHex )
 
 import Control.Exception
 import Control.Monad
 import Foreign
 import Foreign.C
 import System.IO.Unsafe as IO
-import qualified Data.ByteString as Strict ( ByteString )
+import qualified Data.ByteString as Strict ( ByteString, packCStringLen, concatMap, pack )
+import Data.ByteString.Char8 as Strict8 ( pack )
 import qualified Data.ByteString.Lazy as Lazy ( ByteString, toChunks )
 import Data.ByteString.Unsafe ( unsafeUseAsCStringLen )
+import Numeric ( showHex )
 
 -- $setup
 -- >>> import Data.Maybe
 
 -- Generic Class API ----------------------------------------------------------
 
-class Digestable a where
-  {-# MINIMAL digestMany #-}
+-- |A message digest is essentially an array of 'Word8' octets.
 
-  digest :: DigestDescription -> a -> [Word8]
-  digest algo = digestMany algo . return
+type MessageDigest = StrictByteString
 
-  digestMany :: DigestDescription -> [a] -> [Word8]
+-- | Compute the given message digest of any 'Digestable' thing, i.e. any type
+-- that can be converted /efficiently/ and /unambiguously/ into a continuous
+-- memory buffer or a sequence of continuous memory buffers. Note that 'String'
+-- does /not/ have that property, because there . The actual
+-- binary representation chosen for Unicode characters during that process is
+-- determined by the system's locale and is therefore non-deterministic.
 
-instance (DigestablePointeeType a, DigestableSizeType b) => Digestable (Ptr a, b) where
-  digestMany algo chunks = digest' algo (forM_ [ (castPtr ptr, fromIntegral len) | (ptr,len) <- chunks ])
-
-instance Digestable StrictByteString where
-  digestMany algo chunks = digest' algo $ \update ->
-    forM_ chunks $ \chunk ->
-      unsafeUseAsCStringLen chunk $ \(ptr,len) ->
-        update (castPtr ptr, fromIntegral len)
-
-instance Digestable LazyByteString where
-  digestMany algo chunks = digest' algo $ \update ->
-    forM_ chunks $ \chunk' ->
-      forM_ (Lazy.toChunks chunk') $ \chunk ->
-         unsafeUseAsCStringLen chunk $ \(ptr,len) ->
-           update (castPtr ptr, fromIntegral len)
-
--- |We do not define a 'Digestable' instance for 'CStringLen', because there is
--- no one obviously correct way to encode Unicode characters for purposes of
--- calculating a digest. This specialized function is provided for convenience,
--- though. It is implemented on top of 'withCStringLen'. This means that the
--- representation of Unicode characters depends on the process locale
--- configuration a.k.a. it's non-deterministc!
-
-digestCStringLen :: DigestDescription -> CStringLen -> [Word8]
-digestCStringLen algo (ptr,len) = digest algo (castPtr ptr :: Ptr (), len)
-
--- |We do not define a 'Digestable' instance for 'String', because there is no
--- one obviously correct way to encode Unicode characters for purposes of
--- calculating a digest. It would feel silly, though, to offer digest functions
--- for all kinds of types /except/ @String@, so here is a specialized function
--- that computes a digest over a @String@ relying on 'digestCStringLen'.
---
--- >>> digestString (digestByName "sha1") "Hello, world." >>= toHex
--- "2ae01472317d1935a84797ec1983ae243fc6aa28"
-
-digestString :: DigestDescription -> String -> [Word8]
-digestString algo str = IO.unsafePerformIO $
-  withCStringLen str (return . digestCStringLen algo)
-
--- Helper functions -----------------------------------------------------------
-
-type StrictByteString = Strict.ByteString
-
-type LazyByteString = Lazy.ByteString
-
-digest' :: DigestDescription -> (((Ptr (), CSize) -> IO ()) -> IO ()) -> [Word8]
-digest' algo consumer = IO.unsafePerformIO $
+digest :: Digestable a => DigestDescription -> a -> MessageDigest
+digest algo input =
+  IO.unsafePerformIO $
     bracket createContext destroyContext $ \ctx -> do
       initDigest algo ctx
-      consumer (uncurry (updateDigest ctx))
+      updateChunk ctx input
       let mdSize = fromIntegral (_digestSize (getDigestDescription algo))
       allocaArray mdSize $ \md -> do
         finalizeDigest ctx md
-        peekArray mdSize md
+        Strict.packCStringLen (castPtr md, mdSize)
 
-class DigestablePointeeType a
-instance DigestablePointeeType ()
-instance DigestablePointeeType Word8
+class Digestable a where
+  updateChunk :: DigestContext -> a -> IO ()
 
-class Integral a => DigestableSizeType a
-instance DigestableSizeType CSize
-instance DigestableSizeType CUInt
-instance DigestableSizeType Int
+instance Digestable (Ptr a, CSize) where
+  {-# INLINE updateChunk #-}
+  updateChunk ctx = uncurry (updateDigest ctx)
+
+instance Digestable (Ptr a, CUInt) where
+  {-# INLINE updateChunk #-}
+  updateChunk ctx = updateChunk ctx . fmap (fromIntegral :: CUInt -> CSize)
+
+instance Digestable (Ptr a, CInt) where
+  {-# INLINE updateChunk #-}
+  updateChunk ctx = updateChunk ctx . fmap (fromIntegral :: CInt -> CSize)
+
+instance Digestable (Ptr a, Int) where
+  {-# INLINE updateChunk #-}
+  updateChunk ctx = updateChunk ctx . fmap (fromIntegral :: Int -> CSize)
+
+instance Digestable [Word8] where
+  {-# INLINE updateChunk #-}
+  updateChunk ctx buf = withArrayLen buf $ \len ptr -> updateChunk ctx (ptr,len)
+
+instance Digestable StrictByteString where
+  {-# INLINE updateChunk #-}
+  updateChunk ctx str = unsafeUseAsCStringLen str (updateChunk ctx)
+
+instance Digestable LazyByteString where
+  {-# INLINE updateChunk #-}
+  updateChunk ctx = mapM_ (updateChunk ctx) . Lazy.toChunks
+
+-- |We do /not/ define a 'Digestable' instance for 'String', because there is
+-- no one obviously correct way to encode Unicode characters for purposes of
+-- calculating a digest. We have, however, this specialized function which
+-- computes a digest over a @String@ by means of 'withCStrinLen'. This means
+-- that the representation of Unicode characters depends on the process locale
+-- a.k.a. it's non-deterministc!
+--
+-- >>> toHex $ digestString (digestByName "sha1") "Hello, world."
+-- "2ae01472317d1935a84797ec1983ae243fc6aa28"
+
+digestString :: DigestDescription -> String -> MessageDigest
+digestString algo str = IO.unsafePerformIO $
+  withCStringLen str (return . digest algo)
+
+-- Helper functions -----------------------------------------------------------
+
+-- | Synonym for the strict 'Strict.ByteString' variant to improve readability.
+
+type StrictByteString = Strict.ByteString
+
+-- | Synonym for the lazy 'Lazy.ByteString' variant to improve readability.
+
+type LazyByteString = Lazy.ByteString
+
+-- | Pretty-print a given message digest from binary into hexadecimal
+-- representation.
+--
+-- >>> toHex (Data.ByteString.pack [0..15])
+-- "000102030405060708090a0b0c0d0e0f"
+
+toHex :: MessageDigest -> StrictByteString
+toHex = Strict.concatMap f
+  where
+    f :: Word8 -> StrictByteString
+    f w = case showHex w "" of
+            w1:w2:[] -> Strict8.pack $ w1:w2:[]
+            w2:[]    -> Strict8.pack $ '0':w2:[]
+            _        -> error "showHex returned []"

@@ -15,4 +15,4 @@ mkTest :: String -> String -> String -> Test
 mkTest input algoName expect = TestCase $
   case digestByName' algoName of
     Nothing -> return ()
-    Just algo -> assertEqual algoName expect (digestString algo input >>= toHex)
+    Just algo -> assertEqual algoName expect (show (toHex (digestString algo input)))

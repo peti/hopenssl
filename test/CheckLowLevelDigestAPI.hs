@@ -27,7 +27,7 @@ digest algo input = do
     let ctx = digestContext ctx'
     bracket_ (initContext ctx) (cleanupContext ctx) $ do
       initDigest algo ctx
-      withCStringLen input $ \(ptr,len) -> updateDigest ctx (castPtr ptr) (fromIntegral len)
+      withCStringLen input $ \(ptr,len) -> updateDigest ctx ptr (fromIntegral len)
       allocaArray (fromIntegral digestSize) $ \md -> do
         finalizeDigest ctx md
         peekArray (fromIntegral digestSize) md

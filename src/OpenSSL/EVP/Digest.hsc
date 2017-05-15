@@ -140,7 +140,7 @@ foreign import ccall unsafe "openssl/evp.h EVP_DigestInit_ex" _initDigest :: Ptr
 -- Naturally, this function can be called many times. Then use
 -- '_finalizeDigest' to retrieve the actual hash value.
 
-foreign import ccall unsafe "openssl/evp.h EVP_DigestUpdate" _updateDigest :: Ptr OpaqueDigestContext -> Ptr () -> CSize -> IO CInt
+foreign import ccall unsafe "openssl/evp.h EVP_DigestUpdate" _updateDigest :: Ptr OpaqueDigestContext -> Ptr a -> CSize -> IO CInt
 
 -- | Finalize the digest calculation and return the result in the 'Word8' array
 -- passed as an argument. Naturally, that array is expected to be large enough
@@ -201,7 +201,7 @@ cleanupContext (DigestContext ctx) =
 destroyContext :: DigestContext -> IO ()
 destroyContext (DigestContext ctx) = _destroyContext ctx
 
-updateDigest :: DigestContext -> Ptr () -> CSize -> IO ()
+updateDigest :: DigestContext -> Ptr a -> CSize -> IO ()
 updateDigest (DigestContext ctx) ptr len =
   throwIfZero "OpenSSL.EVP.Digest.updateDigest" (_updateDigest ctx ptr len)
 
@@ -219,10 +219,10 @@ throwIfZero :: String -> IO CInt -> IO ()
 throwIfZero fname =
   throwIf_ (==0) (const (showString fname " failed with error code 0"))
 
--- |Neat helper to print digests with:
--- @
---   \\ws :: [Word8] -> ws >>= toHex
--- @
+-- |Neat helper to pretty-print digests into the common hexadecimal notation:
+--
+-- >>> [0..15] >>= toHex
+-- "000102030405060708090a0b0c0d0e0f"
 
 toHex :: Word8 -> String
 toHex w = case showHex w "" of
