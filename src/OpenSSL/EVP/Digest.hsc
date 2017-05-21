@@ -31,6 +31,7 @@ import Foreign.C
 import Numeric ( showHex )
 import System.IO.Unsafe as IO
 
+#include "openssl/opensslv.h"
 #include "openssl/evp.h"
 
 #if __GLASGOW_HASKELL__ < 800
@@ -39,6 +40,7 @@ import System.IO.Unsafe as IO
 
 -- * Low-level API
 
+#if OPENSSL_VERSION_NUMBER < 0x1010000f
 -------------------------------------------------------------------------------
 -- ** OpenSSL Library Initialization
 -------------------------------------------------------------------------------
@@ -50,6 +52,7 @@ import System.IO.Unsafe as IO
 -- 'digestByName'' and 'digestByName' don't have to worry about this.
 
 foreign import ccall unsafe "openssl/evp.h OpenSSL_add_all_digests" _addAllDigests :: IO ()
+#endif
 
 -------------------------------------------------------------------------------
 -- ** Accessing the Supported Digest Types
@@ -57,8 +60,10 @@ foreign import ccall unsafe "openssl/evp.h OpenSSL_add_all_digests" _addAllDiges
 
 data OpaqueDigestDescription
 
--- | Look up a 'Digest' by name. Be sure to call '_addAllDigests' before you
--- use this function.
+-- | Look up a 'Digest' by name.
+#if OPENSSL_VERSION_NUMBER < 0x1010000f
+-- Be sure to call '_addAllDigests' before you use this function.
+#endif
 
 foreign import ccall unsafe "openssl/evp.h EVP_get_digestbyname" _digestByName :: CString -> Ptr OpaqueDigestDescription
 
@@ -88,51 +93,49 @@ data OpaqueDigestEngine
 -------------------------------------------------------------------------------
 
 -- | A context in which -- when initialized -- digest computations can be run.
--- There is a 'Storable' solely for the benefit of being able to create that
--- type with 'alloca' and '_init' instead of having to use '_create', which
--- uses the heap. Anyway, that instance does not define 'peek' nor 'poke' since
--- those make no sense.
+-- Use '_newContext' and '_freeContext' to allocate/deallocate this type.
 
 data OpaqueDigestContext
 
-instance Storable OpaqueDigestContext where
-   sizeOf _    = #{size EVP_MD_CTX}
-   alignment _ = #{alignment EVP_MD_CTX}
-   peek _      = error "Don't do this. OpaqueDigestContext is, like, opaque."
-   poke _ _    = error "Don't do this. OpaqueDigestContext is, like, opaque."
-
--- | Allocate an (initialized) 'OpaqueDigestContext' for use in a digest
+-- | Allocate and initialize an 'OpaqueDigestContext' for use in a digest
 -- computation on the heap. Release its underlying memory after use with
--- '_destroy'.
+-- '_freeContext'.
 
-foreign import ccall unsafe "openssl/evp.h EVP_MD_CTX_create" _createContext :: IO (Ptr OpaqueDigestContext)
+foreign import ccall unsafe
+#if OPENSSL_VERSION_NUMBER < 0x1010000f
+  "openssl/evp.h EVP_MD_CTX_create"
+#else
+  "openssl/evp.h EVP_MD_CTX_new"
+#endif
+  _newContext :: IO (Ptr OpaqueDigestContext)
 
--- | Initialize an 'OpaqueDigestContext' for use in a digest computation. The
--- type can be allocated on the stack with 'alloca' or on the heap with
--- '_create'.
+#if OPENSSL_VERSION_NUMBER >= 0x1010000f
+-- | Re-initialize a previously created 'OpaqueDigestContext' for use in a new
+-- digest computation.
 
-foreign import ccall unsafe "openssl/evp.h EVP_MD_CTX_init" _initContext :: Ptr OpaqueDigestContext -> IO ()
+foreign import ccall unsafe "openssl/evp.h EVP_MD_CTX_reset" _resetContext :: Ptr OpaqueDigestContext -> IO ()
+#endif
 
--- | Release all resources associated with a digest computation's context, but
--- don't release the underlying digest context structure. This allows the context
--- to be re-initiaized for use another computation.
+-- | Release all resources associated with a digest computation's context and
+-- the context structure itself. Use this only for context's acquired with
+-- '_newContext'.
 
-foreign import ccall unsafe "openssl/evp.h EVP_MD_CTX_cleanup" _cleanupContext :: Ptr OpaqueDigestContext -> IO CInt
-
--- | Release all resources associated with a digest computation's context and the
--- context structure itself. Use this only for context's acquired with '_create'.
-
-foreign import ccall unsafe "openssl/evp.h EVP_MD_CTX_destroy" _destroyContext :: Ptr OpaqueDigestContext -> IO ()
+foreign import ccall unsafe
+#if OPENSSL_VERSION_NUMBER < 0x1010000f
+  "openssl/evp.h EVP_MD_CTX_destroy"
+#else
+  "openssl/evp.h EVP_MD_CTX_free"
+#endif
+  _freeContext :: Ptr OpaqueDigestContext -> IO ()
 
 -------------------------------------------------------------------------------
 -- ** State of a Digest Computation
 -------------------------------------------------------------------------------
 
--- | Configure the given /initialized/ digest context to use the given message
--- digest algorithm. The third parameter allows developers to choose a specific
--- engine for that digest, too, but these bindings don't support choosing any
--- specific engine, so pass 'nullPtr' here to the default choice determined by
--- OpenSSL.
+-- | Configure the given digest context to use the given message digest
+-- algorithm. The third parameter allows developers to choose a specific engine
+-- for that digest, too, but these bindings don't support choosing any specific
+-- engine, so pass 'nullPtr' here to the default choice determined by OpenSSL.
 
 foreign import ccall unsafe "openssl/evp.h EVP_DigestInit_ex" _initDigest :: Ptr OpaqueDigestContext -> Ptr OpaqueDigestDescription -> Ptr OpaqueDigestEngine -> IO CInt
 
@@ -147,10 +150,10 @@ foreign import ccall unsafe "openssl/evp.h EVP_DigestUpdate" _updateDigest :: Pt
 -- to contain the digest. '_digestSize' or 'maxDigestSize' are your friends. If
 -- the 'CUInt' pointer is not 'nullPtr', then the actual size of the generated
 -- digest is written into that integer. This function does /not/ clean up the
--- digest context; this has to be done with an explicit call to
--- '_cleanupContext' or '_destroyContext'. However, it does invalidate the
--- digest state so that no further calls of '_digestUpdate' can be made without
--- re-initializing the state with '_initDigest' first.
+-- digest context; this has to be done with an explicit call to '_freeContext'.
+-- However, it does invalidate the digest state so that no further calls of
+-- '_digestUpdate' can be made without re-initializing the state with
+-- '_resetDigest' first.
 
 foreign import ccall unsafe "openssl/evp.h EVP_DigestFinal_ex" _finalizeDigest :: Ptr OpaqueDigestContext -> Ptr Word8 -> Ptr CUInt -> IO CInt
 
@@ -169,8 +172,10 @@ digestByName algo =
 digestByName' :: String -> Maybe DigestDescription
 digestByName' algo = if ptr == nullPtr then Nothing else Just (DigestDescription ptr)
   where ptr = IO.unsafePerformIO $ withCString algo $ \name -> do
+#if OPENSSL_VERSION_NUMBER < 0x1010000f
                 modifyMVar_ isDigestEngineInitialized $ \isInitialized ->
                   unless isInitialized _addAllDigests >> return True
+#endif
                 return (_digestByName name)
 
 newtype DigestContext = DigestContext { getDigestContext :: Ptr OpaqueDigestContext }
@@ -180,12 +185,14 @@ digestContext ptr
   | ptr == nullPtr = throw AttemptToConstructDigestContextFromNullPointer
   | otherwise      = DigestContext ptr
 
-initContext :: DigestContext -> IO ()
-initContext (DigestContext ctx) = _initContext ctx
+#if OPENSSL_VERSION_NUMBER >= 0x1010000f
+resetContext :: DigestContext -> IO ()
+resetContext (DigestContext ctx) = _resetContext ctx
+#endif
 
-createContext :: IO DigestContext
-createContext =
-  fmap DigestContext (throwIfNull "OpenSSL.EVP.Digest.createContext failed" _createContext)
+newContext :: IO DigestContext
+newContext =
+  fmap DigestContext (throwIfNull "OpenSSL.EVP.Digest.newContext failed" _newContext)
 
 -- | Simplified variant of '_initDigest' that (a) always chooses the default
 -- digest engine and (b) reports failure by means of an exception.
@@ -194,12 +201,8 @@ initDigest :: DigestDescription -> DigestContext -> IO ()
 initDigest (DigestDescription algo) (DigestContext ctx) =
   throwIfZero "OpenSSL.EVP.Digest.initDigest" (_initDigest ctx algo nullPtr)
 
-cleanupContext :: DigestContext -> IO ()
-cleanupContext (DigestContext ctx) =
-  throwIfZero "OpenSSL.EVP.Digest.cleanupContext" (_cleanupContext ctx)
-
-destroyContext :: DigestContext -> IO ()
-destroyContext (DigestContext ctx) = _destroyContext ctx
+freeContext :: DigestContext -> IO ()
+freeContext (DigestContext ctx) = _freeContext ctx
 
 updateDigest :: DigestContext -> Ptr a -> CSize -> IO ()
 updateDigest (DigestContext ctx) ptr len =

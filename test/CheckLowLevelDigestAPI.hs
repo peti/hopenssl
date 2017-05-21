@@ -23,12 +23,10 @@ mkTest input algoName expect = TestCase $
 digest :: DigestDescription -> String -> IO String
 digest algo input = do
   let digestSize = _digestSize (getDigestDescription algo)
-  md <- alloca $ \ctx' -> do
-    let ctx = digestContext ctx'
-    bracket_ (initContext ctx) (cleanupContext ctx) $ do
-      initDigest algo ctx
-      withCStringLen input $ \(ptr,len) -> updateDigest ctx ptr (fromIntegral len)
-      allocaArray (fromIntegral digestSize) $ \md -> do
-        finalizeDigest ctx md
-        peekArray (fromIntegral digestSize) md
+  md <- bracket newContext freeContext $ \ctx -> do
+    initDigest algo ctx
+    withCStringLen input $ \(ptr,len) -> updateDigest ctx ptr (fromIntegral len)
+    allocaArray (fromIntegral digestSize) $ \md -> do
+      finalizeDigest ctx md
+      peekArray (fromIntegral digestSize) md
   return (md >>= toHex)

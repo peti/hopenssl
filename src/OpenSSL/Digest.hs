@@ -122,7 +122,7 @@ type MessageDigest = StrictByteString
 digest :: Digestable a => DigestDescription -> a -> MessageDigest
 digest algo input =
   IO.unsafePerformIO $
-    bracket createContext destroyContext $ \ctx -> do
+    bracket newContext freeContext $ \ctx -> do
       initDigest algo ctx
       updateChunk ctx input
       let mdSize = fromIntegral (_digestSize (getDigestDescription algo))
