@@ -102,21 +102,18 @@ import Foreign
 import Foreign.C
 import System.IO.Unsafe as IO
 
--- $setup
--- >>> import Data.Maybe
-
 -- Generic Class API ----------------------------------------------------------
 
--- |A message digest is essentially an array of 'Word8' octets.
+-- | A message digest is essentially an array of 'Word8' octets.
 
 type MessageDigest = StrictByteString
 
 -- | Compute the given message digest of any 'Digestable' thing, i.e. any type
 -- that can be converted /efficiently/ and /unambiguously/ into a continuous
 -- memory buffer or a sequence of continuous memory buffers. Note that 'String'
--- does /not/ have that property, because there . The actual
--- binary representation chosen for Unicode characters during that process is
--- determined by the system's locale and is therefore non-deterministic.
+-- does /not/ have that property, because the binary representation chosen for
+-- Unicode characters during the marshaling process is determined by the
+-- system's locale and is therefore non-deterministic.
 
 digest :: Digestable a => Algorithm -> a -> MessageDigest
 digest algo input =
@@ -128,6 +125,11 @@ digest algo input =
       allocaArray mdSize $ \md -> do
         finalizeDigest ctx md
         Strict.packCStringLen (castPtr md, mdSize)
+
+-- | A class of things that can be part of a digest computations. By default,
+-- we define instances only for various representations of plain memory
+-- buffers, but in theory that class can be extended to contain all kinds of
+-- complex data types.
 
 class Digestable a where
   updateChunk :: Context -> a -> IO ()
