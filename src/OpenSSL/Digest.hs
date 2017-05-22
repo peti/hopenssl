@@ -9,9 +9,9 @@
    This module provides a generic high-level API to the message digest
    algorithms found in OpenSSL's @crypto@ library. There are two functions of
    particular interest: 'digestByName' and 'digest'. The former can be used to
-   retrieve a 'DigestDescription', i.e. an OpenSSL object that implements a
-   particular algorithm. That type can then be used to compute actual message
-   digests with the latter function:
+   retrieve an 'Algorithm', i.e. an OpenSSL object that implements a particular
+   algorithm. That type can then be used to compute actual message digests with
+   the latter function:
 
    >>> import Data.ByteString.Char8 ( pack )
    >>> digest (digestByName "md5") (pack "Hello, world.")
@@ -36,9 +36,8 @@
    >>> digestByName' "i bet this algorithm won't exist"
    Nothing
 
-   'DigestDescription' is an instance of 'IsString', so with the proper GHC
-   extensions enabled it's possible to simplify the call to 'digest' even
-   further:
+   'Algorithm' is an instance of 'IsString', so with the proper GHC extensions
+   enabled it's possible to simplify the call to 'digest' even further:
 
    >>> :set -XOverloadedStrings
    >>> toHex $ digest "sha256" (pack "The 'Through the Universe' podcast rules.")
@@ -50,12 +49,12 @@
    construct of "void pointer plus a length". @digest@ can use with any of the
    following signatures:
 
-   >>> let shape1 = digest :: DigestDescription -> (Ptr (),    CSize) -> MessageDigest
-   >>> let shape2 = digest :: DigestDescription -> (Ptr Word8, CSize) -> MessageDigest
-   >>> let shape3 = digest :: DigestDescription -> (Ptr Word8, CUInt) -> MessageDigest
-   >>> let shape4 = digest :: DigestDescription -> (Ptr (),    Int)   -> MessageDigest
-   >>> let shape5 = digest :: DigestDescription -> StrictByteString   -> MessageDigest
-   >>> let shape6 = digest :: DigestDescription -> LazyByteString     -> MessageDigest
+   >>> let shape1 = digest :: Algorithm -> (Ptr (),    CSize) -> MessageDigest
+   >>> let shape2 = digest :: Algorithm -> (Ptr Word8, CSize) -> MessageDigest
+   >>> let shape3 = digest :: Algorithm -> (Ptr Word8, CUInt) -> MessageDigest
+   >>> let shape4 = digest :: Algorithm -> (Ptr (),    Int)   -> MessageDigest
+   >>> let shape5 = digest :: Algorithm -> StrictByteString   -> MessageDigest
+   >>> let shape6 = digest :: Algorithm -> LazyByteString     -> MessageDigest
 
    'StrictByteString' and 'LazyByteString' are also instances of 'IsString' and
    therefore subject to implicit construction from string literals:
@@ -83,7 +82,7 @@
 
 module OpenSSL.Digest
   ( -- * Generic digest API
-    MessageDigest, digest, Digestable(..), digestByName, digestByName', DigestDescription
+    MessageDigest, digest, Digestable(..), digestByName, digestByName', Algorithm
   , -- * Special instances
     digestString
   , -- * Helper Types and Functions
@@ -91,7 +90,8 @@ module OpenSSL.Digest
   )
   where
 
-import OpenSSL.EVP.Digest hiding ( toHex )
+import OpenSSL.EVP.Digest
+import qualified OpenSSL.Util as Util
 
 import Control.Exception
 import qualified Data.ByteString as Strict ( ByteString, packCStringLen, concatMap )
@@ -100,7 +100,6 @@ import qualified Data.ByteString.Lazy as Lazy ( ByteString, toChunks )
 import Data.ByteString.Unsafe ( unsafeUseAsCStringLen )
 import Foreign
 import Foreign.C
-import Numeric ( showHex )
 import System.IO.Unsafe as IO
 
 -- $setup
@@ -119,19 +118,19 @@ type MessageDigest = StrictByteString
 -- binary representation chosen for Unicode characters during that process is
 -- determined by the system's locale and is therefore non-deterministic.
 
-digest :: Digestable a => DigestDescription -> a -> MessageDigest
+digest :: Digestable a => Algorithm -> a -> MessageDigest
 digest algo input =
   IO.unsafePerformIO $
     bracket newContext freeContext $ \ctx -> do
       initDigest algo ctx
       updateChunk ctx input
-      let mdSize = fromIntegral (_digestSize (getDigestDescription algo))
+      let mdSize = fromIntegral (digestSize algo)
       allocaArray mdSize $ \md -> do
         finalizeDigest ctx md
         Strict.packCStringLen (castPtr md, mdSize)
 
 class Digestable a where
-  updateChunk :: DigestContext -> a -> IO ()
+  updateChunk :: Context -> a -> IO ()
 
 instance Digestable (Ptr a, CSize) where
   {-# INLINE updateChunk #-}
@@ -171,7 +170,7 @@ instance Digestable LazyByteString where
 -- >>> toHex $ digestString (digestByName "sha1") "Hello, world."
 -- "2ae01472317d1935a84797ec1983ae243fc6aa28"
 
-digestString :: DigestDescription -> String -> MessageDigest
+digestString :: Algorithm -> String -> MessageDigest
 digestString algo str = IO.unsafePerformIO $
   withCStringLen str (return . digest algo)
 
@@ -192,10 +191,4 @@ type LazyByteString = Lazy.ByteString
 -- "000102030405060708090a0b0c0d0e0f"
 
 toHex :: MessageDigest -> StrictByteString
-toHex = Strict.concatMap f
-  where
-    f :: Word8 -> StrictByteString
-    f w = case showHex w "" of
-            [w1,w2] -> pack [w1, w2]
-            [w2]    -> pack ['0', w2]
-            _       -> error "showHex returned []"
+toHex = Strict.concatMap (pack . Util.toHex)

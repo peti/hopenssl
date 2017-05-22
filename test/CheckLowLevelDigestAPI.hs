@@ -1,7 +1,9 @@
 module Main ( main ) where
 
-import OpenSSL.EVP.Digest
 import OpenSesame
+
+import OpenSSL.EVP.Digest
+import OpenSSL.Util
 
 import Control.Exception
 import Foreign
@@ -20,13 +22,13 @@ mkTest input algoName expect = TestCase $
     Nothing -> return ()
     Just algo -> digest algo input >>= assertEqual algoName expect
 
-digest :: DigestDescription -> String -> IO String
+digest :: Algorithm -> String -> IO String
 digest algo input = do
-  let digestSize = _digestSize (getDigestDescription algo)
+  let mdSize = digestSize algo
   md <- bracket newContext freeContext $ \ctx -> do
     initDigest algo ctx
     withCStringLen input $ \(ptr,len) -> updateDigest ctx ptr (fromIntegral len)
-    allocaArray (fromIntegral digestSize) $ \md -> do
+    allocaArray mdSize $ \md -> do
       finalizeDigest ctx md
-      peekArray (fromIntegral digestSize) md
+      peekArray mdSize md
   return (md >>= toHex)
