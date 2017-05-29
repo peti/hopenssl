@@ -36,6 +36,7 @@ library
                         OpenSSL.EVP.Digest.Context
                         OpenSSL.EVP.Digest.Error
                         OpenSSL.EVP.Digest.Initialization
+  build-tools:          hsc2hs
 
 test-suite check-low-level-digest-api
   type:                 exitcode-stdio-1.0
