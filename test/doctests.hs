@@ -1,12 +1,10 @@
-module Main (main) where
+module Main where
 
-import Test.DocTest
-import System.Environment
-import Data.Maybe
+import Build_doctests (flags, pkgs, module_sources)
+import Data.Foldable (traverse_)
+import Test.DocTest (doctest)
 
 main :: IO ()
-main = do
-  distDir <- fromMaybe "dist" `fmap` lookupEnv "HASKELL_DIST_DIR"
-  let hscFilesDir = distDir ++ "/build"
-      packageDB = distDir ++ "/package.conf.inplace"
-  doctest [ "-package-db=" ++ packageDB, "-package=hopenssl", "src", hscFilesDir ]
+main = do let args = flags ++ pkgs ++ module_sources
+          traverse_ putStrLn args -- optionally print arguments
+          doctest args
