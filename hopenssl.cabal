@@ -1,6 +1,6 @@
 name:                   hopenssl
 version:                2.2.1
-copyright:              (c) 2004-2017 Peter Simons
+copyright:              (c) 2004-2018 Peter Simons
 license:                BSD3
 license-file:           LICENSE
 author:                 Peter Simons, Markus Rothe
@@ -14,14 +14,8 @@ description:            Foreign-function bindings to the
                         RIPEMD160, and various SHA variants through the EVP
                         digest interface.
 cabal-version:          >= 1.8
-build-type:             Custom
+build-type:             Simple
 tested-with:            GHC > 7.6 && < 8.3
-
-custom-setup
-  setup-depends:
-    base >= 4 && <5,
-    Cabal,
-    cabal-doctest >= 1 && <1.1
 
 source-repository head
   type:                 git
@@ -58,11 +52,4 @@ test-suite check-high-level-digest-api
   other-modules:        OpenSesame
   hs-source-dirs:       test
   build-depends:        base >= 3 && < 5, hopenssl, HUnit
-  ghc-options:          -threaded
-
-test-suite doctests
-  type:                 exitcode-stdio-1.0
-  main-is:              doctests.hs
-  hs-source-dirs:       test
-  build-depends:        base, hopenssl, doctest
   ghc-options:          -threaded
