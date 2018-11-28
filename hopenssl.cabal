@@ -1,5 +1,5 @@
 name:                   hopenssl
-version:                2.2.2
+version:                2.2.3
 copyright:              (c) 2004-2018 Peter Simons
 license:                BSD3
 license-file:           LICENSE
@@ -52,5 +52,5 @@ test-suite check-high-level-digest-api
   main-is:              CheckHighLevelDigestAPI.hs
   other-modules:        OpenSesame
   hs-source-dirs:       test
-  build-depends:        base >= 3 && < 5, hopenssl, HUnit
+  build-depends:        base >= 3 && < 5, hopenssl, HUnit, bytestring
   ghc-options:          -threaded

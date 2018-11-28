@@ -8,10 +8,14 @@ import OpenSSL.Util
 import Control.Exception
 import Foreign
 import Foreign.C.String
+import System.Exit
 import Test.HUnit
 
 main :: IO ()
-main = runTestTT (TestList tests) >> return ()
+main = do cnt <- runTestTT (TestList tests)
+          if errors cnt == 0 && failures cnt == 0
+             then exitSuccess
+             else exitFailure
 
 tests :: [Test]
 tests = map (uncurry (mkTest "open sesame")) opensesame
