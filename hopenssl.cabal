@@ -20,6 +20,11 @@ source-repository head
   type:     git
   location: git://github.com/peti/hopenssl.git
 
+flag link-libz
+  default:     False
+  manual:      True
+  description: OpenSSL\'s @libcrypto@ has a dependency on @libz@
+
 library
   exposed-modules:  OpenSSL.Digest
                     OpenSSL.EVP.Digest
@@ -40,6 +45,9 @@ library
   extra-libraries:  crypto
   includes:         openssl/evp.h
   build-tools:      hsc2hs
+
+  if flag(link-libz)
+    extra-libraries: z
 
 test-suite check-low-level-digest-api
   type:           exitcode-stdio-1.0
