@@ -52,7 +52,7 @@ finalizeDigest ctx ptr =
 
 -- | We don't support choosing a custom engine to implement the given
 -- algorithm. This type is just a place holder, and we always pass 'nullPtr'
--- whereever it is required to let OpenSSL choose whatever engine it thinks is
+-- wherever it is required to let OpenSSL choose whatever engine it thinks is
 -- best.
 
 data OpaqueEngine
