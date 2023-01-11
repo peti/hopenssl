@@ -48,9 +48,9 @@ jobs:
             compilerVersion: 8.10.7
             setup-method: ghcup
             allow-failure: false
-          - compiler: ghc-8.8.1
+          - compiler: ghc-8.8.4
             compilerKind: ghc
-            compilerVersion: 8.8.1
+            compilerVersion: 8.8.4
             setup-method: hvr-ppa
             allow-failure: false
           - compiler: ghc-8.6.5
@@ -262,10 +262,10 @@ jobs:
       - name: doctest
         run: |
           if [ $((HCNUMVER >= 80000)) -ne 0 ] ; then cd ${PKGDIR_hopenssl} || false ; fi
-          if [ $((HCNUMVER >= 80000)) -ne 0 ] ; then doctest  src ; fi
+          if [ $((HCNUMVER >= 80000)) -ne 0 ] ; then doctest  -XHaskell2010 src ; fi
       - name: hlint
         run: |
-          if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then (cd ${PKGDIR_hopenssl} && hlint src) ; fi
+          if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then (cd ${PKGDIR_hopenssl} && hlint -XHaskell2010 src) ; fi
       - name: cabal check
         run: |
           cd ${PKGDIR_hopenssl} || false
