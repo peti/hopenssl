@@ -1,5 +1,5 @@
 name:          hopenssl
-version:       2.2.4
+version:       2.2.5
 synopsis:      FFI Bindings to OpenSSL's EVP Digest Interface
 description:   Foreign-function bindings to the <http://www.openssl.org/ OpenSSL library>.
                Currently provides access to the messages digests MD5, DSS, DSS1,
