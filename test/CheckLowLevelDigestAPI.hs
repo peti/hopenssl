@@ -23,7 +23,7 @@ tests = map (uncurry (mkTest "open sesame")) opensesame
 mkTest :: String -> String -> String -> Test
 mkTest input algoName expect = TestCase $
   case digestByName' algoName of
-    Nothing -> return ()
+    Nothing -> assertFailure ("cannot find digest algorithm " ++ show algoName)
     Just algo -> digest algo input >>= assertEqual algoName expect
 
 digest :: Algorithm -> String -> IO String
