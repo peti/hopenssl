@@ -93,8 +93,18 @@ digestBlockSize = fromIntegral . _digestBlockSize
 foreign import ccall unsafe "openssl/evp.h EVP_get_digestbyname"
   _digestByName :: CString -> Algorithm
 
-foreign import ccall unsafe "openssl/evp.h EVP_MD_size"
+foreign import ccall unsafe
+#if OPENSSL_VERSION_MAJOR < 3
+  "openssl/evp.h EVP_MD_size"
+#else
+  "openssl/evp.h EVP_MD_get_size"
+#endif
   _digestSize :: Algorithm -> CInt
 
-foreign import ccall unsafe "openssl/evp.h EVP_MD_block_size"
+foreign import ccall unsafe
+#if OPENSSL_VERSION_MAJOR < 3
+  "openssl/evp.h EVP_MD_block_size"
+#else
+  "openssl/evp.h EVP_MD_get_block_size"
+#endif
   _digestBlockSize :: Algorithm -> CInt
