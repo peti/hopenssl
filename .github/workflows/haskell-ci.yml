@@ -8,9 +8,9 @@
 #
 # For more information, see https://github.com/haskell-CI/haskell-ci
 #
-# version: 0.15.20221225
+# version: 0.15.20230115
 #
-# REGENDATA ("0.15.20221225",["--doctest","--hlint","github","hopenssl.cabal"])
+# REGENDATA ("0.15.20230115",["--doctest","--hlint","github","hopenssl.cabal"])
 #
 name: Haskell-CI
 on:
@@ -48,9 +48,9 @@ jobs:
             compilerVersion: 8.10.7
             setup-method: ghcup
             allow-failure: false
-          - compiler: ghc-8.8.1
+          - compiler: ghc-8.8.4
             compilerKind: ghc
-            compilerVersion: 8.8.1
+            compilerVersion: 8.8.4
             setup-method: hvr-ppa
             allow-failure: false
           - compiler: ghc-8.6.5
@@ -181,7 +181,7 @@ jobs:
         run: |
           $CABAL v2-update -v
       - name: cache (tools)
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           key: ${{ runner.os }}-${{ matrix.compiler }}-tools-edbf4cb5
           path: ~/.haskell-ci-tools
@@ -205,7 +205,7 @@ jobs:
           if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then mkdir -p $CABAL_DIR/bin && ln -sf "$HOME/.haskell-ci-tools/hlint-$HLINTVER/hlint" $CABAL_DIR/bin/hlint ; fi
           if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then hlint --version ; fi
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: source
       - name: initial cabal.project for sdist
@@ -241,7 +241,7 @@ jobs:
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dry-run all
           cabal-plan
       - name: cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           key: ${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}
           path: ~/.cabal/store
@@ -262,10 +262,10 @@ jobs:
       - name: doctest
         run: |
           if [ $((HCNUMVER >= 80000)) -ne 0 ] ; then cd ${PKGDIR_hopenssl} || false ; fi
-          if [ $((HCNUMVER >= 80000)) -ne 0 ] ; then doctest  src ; fi
+          if [ $((HCNUMVER >= 80000)) -ne 0 ] ; then doctest  -XHaskell2010 src ; fi
       - name: hlint
         run: |
-          if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then (cd ${PKGDIR_hopenssl} && hlint src) ; fi
+          if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then (cd ${PKGDIR_hopenssl} && hlint -XHaskell2010 src) ; fi
       - name: cabal check
         run: |
           cd ${PKGDIR_hopenssl} || false
